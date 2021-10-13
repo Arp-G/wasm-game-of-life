@@ -34,3 +34,8 @@ JavaScript's garbage-collected heap — where Objects, Arrays, and DOM nodes are
   , and are exposed to JavaScript as opaque handles. 
   
 * JavaScript calls exported WebAssembly functions that take these opaque handles, transform their data, perform heavy computations, query the data, and ultimately return a small, copy-able result.
+
+
+### Points
+
+* Rust-generated WebAssembly functions cannot return borrowed references.
