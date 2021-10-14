@@ -35,7 +35,34 @@ JavaScript's garbage-collected heap — where Objects, Arrays, and DOM nodes are
   
 * JavaScript calls exported WebAssembly functions that take these opaque handles, transform their data, perform heavy computations, query the data, and ultimately return a small, copy-able result.
 
+### Debugging
+
+* Enable debug symbols, this preserves function names in the compiled .wasm binary and therfore in the stack traces otherwise so stack traces instead of names like `wasm-function[42]`, debugging in not present in rust release builds to enable it set `debug = true` under `[profile.release]` in `Cargo.toml`
+
+* Log rust panics to browser console via the `console_error_panic_hook` hook
+  This crate is by default installed and setup when using the `wasm-pack-template`
+
+  Just initialize the hook at a common code path like `utils::set_panic_hook();`
+
+* To log custom messages to browser console, install the `web.sys` crate 
+  and enable the `console` feature on it by...
+  ```
+  [dependencies.web-sys]
+  version = "0.3"
+  features = [ "console"]
+  ```
+
+  Now you can log to browser console like...
+  ```
+  extern crate web_sys;
+  web_sys::console::log_1(&"Hello, world!".into());
+  ``` 
+ 
+  (Optional: Make the logger a macro for easy usage)
 
 ### Points
 
-* Rust-generated WebAssembly functions cannot return borrowed references.
+* Any function that is to be exported to js world should be annoted by the `#[wasm_bindgen]` attribute
+
+* Rust-generated WebAssembly functions cannot return borrowed references but you can return raw pointers to memory locations like...
+  `pub fn cells(&self) -> *const Cell {  self.cells.as_ptr()  }`

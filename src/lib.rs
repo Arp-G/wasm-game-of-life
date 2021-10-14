@@ -19,6 +19,15 @@ pub fn greet(name: &str) {
     alert(name);
 }
 
+extern crate web_sys;
+
+// A macro to provide `println!(..)`-style syntax for `console.log` logging.
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
 /*
 Type defination for every Cell in the universe
 #[repr(u8)] -> Represent each cell as a single byte
@@ -32,12 +41,23 @@ pub enum Cell {
 }
 
 #[wasm_bindgen]
+impl Cell {
+    fn toggle(&mut self) {
+        *self = match *self {
+            Cell::Dead => Cell::Alive,
+            Cell::Alive => Cell::Dead,
+        };
+    }
+}
+
+#[wasm_bindgen]
 pub struct Universe {
     width: u32,
     height: u32,
     cells: Vec<Cell>,
 }
 
+// This `impl` block is annotated with #[wasm_bindgen] so that it can be called by JavaScript. 
 #[wasm_bindgen]
 impl Universe {
     // Get 1D array index for a given 2D array index
@@ -81,6 +101,11 @@ impl Universe {
         self.cells.as_ptr()
     }
 
+    pub fn toggle_cell(&mut self, row: u32, column: u32) {
+        let idx = self.get_index(row, column);
+        self.cells[idx].toggle();
+    }
+
     /// Set the width of the universe.
     ///
     /// Resets all cells to the dead state.
@@ -102,10 +127,18 @@ impl Universe {
         let mut next = self.cells.clone(); // Next generation
 
         for row in 0..self.height {
-            for column in 0..self.width {
-                let idx = self.get_index(row, column);
+            for col in 0..self.width {
+                let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
-                let live_neighbours = self.live_neighbour_count(row, column);
+                let live_neighbours = self.live_neighbour_count(row, col);
+
+                // log!(
+                //     "cell[{}, {}] is initially {:?} and has {} live neighbors",
+                //     row,
+                //     col,
+                //     cell,
+                //     live_neighbours
+                // );
 
                 let next_cell = match (cell, live_neighbours) {
                     // Rule 1: Any live cell with fewer than two live neighbours
@@ -128,6 +161,7 @@ impl Universe {
                     (otherwise, _) => otherwise,
                 };
 
+                // log!("    it becomes {:?}", next_cell);
                 next[idx] = next_cell;
             }
         }
@@ -136,6 +170,9 @@ impl Universe {
 
     // Constructor to initializes the universe with an interesting pattern of live and dead cells
     pub fn new() -> Universe {
+        // Init hook to log rust panic to browser console
+        utils::set_panic_hook();
+
         let width = 64;
         let height = 64;
 
@@ -148,6 +185,8 @@ impl Universe {
                 }
             })
             .collect();
+
+        log!("Init Universe from wasm");
 
         Universe {
             width,
@@ -183,7 +222,7 @@ impl fmt::Display for Universe {
 }
 
 // Functions for testing
-// Rust-generated WebAssembly functions cannot return borrowed references. 
+// Rust-generated WebAssembly functions cannot return borrowed references.
 // So created a new `impl Universe` without the #[wasm_bindgen] attribute
 impl Universe {
     /// Get the dead and alive values of the entire universe.
